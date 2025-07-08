@@ -44,7 +44,8 @@
     "test:nodes": "turbo run test:nodes --concurrency=1",
     "watch": "turbo run watch --parallel",
     "webhook": "./packages/cli/bin/n8n webhook",
-    "worker": "./packages/cli/bin/n8n worker"
+    "worker": "./packages/cli/bin/n8n worker",
+    "start-scraper": "node scraper.js"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
