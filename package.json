@@ -101,6 +101,9 @@
       "eslint-plugin-n8n-local-rules": "patches/eslint-plugin-n8n-local-rules.patch",
       "element-plus@2.4.3": "patches/element-plus@2.4.3.patch"
     }
+  },
+  "dependencies": {
+    "puppeteer": "^21.3.8",
+    "express": "^4.18.2"
   }
 }
-
