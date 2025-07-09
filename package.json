@@ -45,7 +45,9 @@
     "watch": "turbo run watch --parallel",
     "webhook": "./packages/cli/bin/n8n webhook",
     "worker": "./packages/cli/bin/n8n worker",
-    "start-scraper": "node scraper.js"
+    "start-scraper": "node scraper.js",
+"start-both": "node start-both.js"
+
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
