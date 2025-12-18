@@ -21,8 +21,10 @@ export function getSupportedMessageComponent(type: ChatUI.AssistantMessage['type
 			return EventMessage;
 		case 'tool':
 			return ToolMessage;
+		case 'thinking-group': // Handled directly in AskAssistantChat.vue
 		case 'agent-suggestion':
 		case 'workflow-updated':
+		case 'custom':
 			return null;
 		default:
 			return null;

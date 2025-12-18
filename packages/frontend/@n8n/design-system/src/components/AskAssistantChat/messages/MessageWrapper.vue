@@ -15,6 +15,7 @@ export interface Props {
 	};
 	streaming?: boolean;
 	isLastMessage?: boolean;
+	color?: string;
 }
 
 const props = defineProps<Props>();
@@ -31,16 +32,28 @@ const messageComponent = computed<Component | null>(() => {
 </script>
 
 <template>
-	<component
-		:is="messageComponent"
-		v-if="messageComponent"
-		:message="message"
-		:is-first-of-role="isFirstOfRole"
-		:user="user"
-		:streaming="streaming"
-		:is-last-message="isLastMessage"
-		@code-replace="emit('codeReplace')"
-		@code-undo="emit('codeUndo')"
-		@feedback="(feedback: RatingFeedback) => emit('feedback', feedback)"
-	/>
+	<div>
+		<component
+			:is="messageComponent"
+			v-if="messageComponent"
+			:message="message"
+			:is-first-of-role="isFirstOfRole"
+			:user="user"
+			:streaming="streaming"
+			:is-last-message="isLastMessage"
+			:color="color"
+			@code-replace="emit('codeReplace')"
+			@code-undo="emit('codeUndo')"
+			@feedback="(feedback: RatingFeedback) => emit('feedback', feedback)"
+		/>
+		<slot
+			v-else-if="message.type === 'custom'"
+			name="custom-message"
+			:message="message"
+			:is-first-of-role="isFirstOfRole"
+			:user="user"
+			:streaming="streaming"
+			:is-last-message="isLastMessage"
+		/>
+	</div>
 </template>

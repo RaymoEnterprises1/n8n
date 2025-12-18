@@ -8,6 +8,7 @@ import {
 	linkUserToProject,
 	testDb,
 	mockInstance,
+	createActiveWorkflow,
 } from '@n8n/backend-test-utils';
 import type { Project, User } from '@n8n/db';
 import { FolderRepository, ProjectRepository, WorkflowRepository } from '@n8n/db';
@@ -53,7 +54,16 @@ const activeWorkflowManager = mockInstance(ActiveWorkflowManager);
 beforeEach(async () => {
 	testServer.license.enable('feat:folders');
 
-	await testDb.truncate(['Folder', 'SharedWorkflow', 'TagEntity', 'Project', 'ProjectRelation']);
+	await testDb.truncate([
+		'Folder',
+		'SharedWorkflow',
+		'TagEntity',
+		'Project',
+		'ProjectRelation',
+		'WorkflowEntity',
+		'WorkflowHistory',
+		'WorkflowPublishHistory',
+	]);
 
 	projectRepository = Container.get(ProjectRepository);
 	folderRepository = Container.get(FolderRepository);
@@ -87,7 +97,7 @@ describe('POST /projects/:projectId/folders', () => {
 			name: 'Test Folder',
 		};
 
-		await authOwnerAgent.post('/projects/non-existing-id/folders').send(payload).expect(403);
+		await authOwnerAgent.post('/projects/non-existing-id/folders').send(payload).expect(404);
 	});
 
 	test('should not create folder when name is empty', async () => {
@@ -278,7 +288,7 @@ describe('GET /projects/:projectId/folders/:folderId/tree', () => {
 	});
 
 	test('should not get folder tree when project does not exist', async () => {
-		await authOwnerAgent.get('/projects/non-existing-id/folders/some-folder-id/tree').expect(403);
+		await authOwnerAgent.get('/projects/non-existing-id/folders/some-folder-id/tree').expect(404);
 	});
 
 	test('should not get folder tree when folder does not exist', async () => {
@@ -388,7 +398,6 @@ describe('GET /projects/:projectId/folders/:folderId/credentials', () => {
 				{
 					name: 'Test Workflow',
 					parentFolder: folder,
-					active: false,
 					nodes: [
 						{
 							parameters: {},
@@ -418,7 +427,7 @@ describe('GET /projects/:projectId/folders/:folderId/credentials', () => {
 	test('should not get folder credentials when project does not exist', async () => {
 		await authOwnerAgent
 			.get('/projects/non-existing-id/folders/some-folder-id/credentials')
-			.expect(403);
+			.expect(404);
 	});
 
 	test('should not get folder credentials when folder does not exist', async () => {
@@ -480,7 +489,6 @@ describe('GET /projects/:projectId/folders/:folderId/credentials', () => {
 				{
 					name: 'Test Workflow',
 					parentFolder: folder,
-					active: false,
 					nodes: [
 						{
 							parameters: {},
@@ -545,7 +553,7 @@ describe('PATCH /projects/:projectId/folders/:folderId', () => {
 		await authOwnerAgent
 			.patch('/projects/non-existing-id/folders/some-folder-id')
 			.send(payload)
-			.expect(403);
+			.expect(404);
 	});
 
 	test('should not update folder when folder does not exist', async () => {
@@ -1005,7 +1013,7 @@ describe('DELETE /projects/:projectId/folders/:folderId', () => {
 		await authOwnerAgent
 			.delete('/projects/non-existing-id/folders/some-folder-id')
 			.send({})
-			.expect(403);
+			.expect(404);
 	});
 
 	test('should not delete folder when folder does not exist', async () => {
@@ -1093,8 +1101,8 @@ describe('DELETE /projects/:projectId/folders/:folderId', () => {
 		});
 
 		// Create workflows in the folders
-		const workflow1 = await createWorkflow({ parentFolder: rootFolder, active: false }, owner);
-		const workflow2 = await createWorkflow({ parentFolder: childFolder, active: true }, owner);
+		const workflow1 = await createWorkflow({ parentFolder: rootFolder }, owner);
+		const workflow2 = await createActiveWorkflow({ parentFolder: childFolder }, owner);
 
 		await authOwnerAgent.delete(`/projects/${project.id}/folders/${rootFolder.id}`);
 
@@ -1115,6 +1123,7 @@ describe('DELETE /projects/:projectId/folders/:folderId', () => {
 		expect(workflow1InDb?.isArchived).toBe(true);
 		expect(workflow1InDb?.parentFolder).toBe(null);
 		expect(workflow1InDb?.active).toBe(false);
+		expect(workflow1InDb?.activeVersionId).toBeNull();
 
 		const workflow2InDb = await workflowRepository.findOne({
 			where: { id: workflow2.id },
@@ -1124,6 +1133,7 @@ describe('DELETE /projects/:projectId/folders/:folderId', () => {
 		expect(workflow2InDb?.isArchived).toBe(true);
 		expect(workflow2InDb?.parentFolder).toBe(null);
 		expect(workflow2InDb?.active).toBe(false);
+		expect(workflow2InDb?.activeVersionId).toBeNull();
 	});
 
 	test('should transfer folder contents when transferToFolderId is specified', async () => {
@@ -1303,7 +1313,7 @@ describe('GET /projects/:projectId/folders', () => {
 	});
 
 	test('should not list folders when project does not exist', async () => {
-		await authOwnerAgent.get('/projects/non-existing-id/folders').expect(403);
+		await authOwnerAgent.get('/projects/non-existing-id/folders').expect(404);
 	});
 
 	test('should not list folders if user has no access to project', async () => {
@@ -1731,7 +1741,7 @@ describe('GET /projects/:projectId/folders/content', () => {
 	test('should not list folders when project does not exist', async () => {
 		await authOwnerAgent
 			.get('/projects/non-existing-id/folders/no-existing-id/content')
-			.expect(403);
+			.expect(404);
 	});
 
 	test('should not return folder content if user has no access to project', async () => {
@@ -1823,7 +1833,7 @@ describe('PUT /projects/:projectId/folders/:folderId/transfer', () => {
 
 		const sourceFolder1 = await createFolder(sourceProject, { name: 'Source Folder 1' });
 
-		await createWorkflow({ active: true, parentFolder: sourceFolder1 }, destinationProject);
+		await createActiveWorkflow({ parentFolder: sourceFolder1 }, destinationProject);
 
 		await testServer
 			.authAgentFor(member)
@@ -1856,7 +1866,7 @@ describe('PUT /projects/:projectId/folders/:folderId/transfer', () => {
 
 		const sourceFolder1 = await createFolder(sourceProject, { name: 'Source Folder 1' });
 
-		await createWorkflow({ active: true }, destinationProject);
+		await createActiveWorkflow({}, destinationProject);
 
 		await testServer
 			.authAgentFor(member)
@@ -2599,7 +2609,7 @@ describe('PUT /projects/:projectId/folders/:folderId/transfer', () => {
 			parentFolder: sourceFolder1,
 		});
 
-		await createWorkflow({ active: true, parentFolder: sourceFolder1 }, sourceProject);
+		await createActiveWorkflow({ parentFolder: sourceFolder1 }, sourceProject);
 		await createWorkflow({ parentFolder: sourceFolder2 }, sourceProject);
 
 		activeWorkflowManager.add.mockRejectedValue(new ApplicationError('Oh no!'));
